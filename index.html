@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WanderAR</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    /* UI STYLING - Preserving your requested design */
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #000; }
+    
+    .screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 10; display: none; flex-direction: column; align-items: center; 
+    }
+
+    #splash { background-color: #0b0c10; color: white; display: flex; justify-content: center; }
+    #splash h1 { margin-top: 20px; font-size: 24px; }
+    #splash p { color: #888; font-size: 14px; }
+
+    #menu { background-color: white; padding-top: 40px; justify-content: flex-start; }
+    .menu-header { width: 90%; text-align: left; margin-bottom: 20px; }
+    .room-btn { 
+      width: 90%; padding: 20px; margin: 5px 0; background: white; 
+      border: 1px solid #ddd; border-radius: 12px; text-align: left; 
+      font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    #scan-prompt { background-color: white; justify-content: center; text-align: center; }
+    .start-btn { background-color: #0b0c10; color: white; padding: 15px 40px; border-radius: 12px; font-size: 16px; margin-top: 30px; font-weight: bold; cursor: pointer; }
+
+    #ar-ui { display: none; justify-content: space-between; pointer-events: none; }
+    .ar-header { background: #1f2029; color: white; width: 100%; padding: 15px; display: flex; justify-content: space-between; align-items: center; pointer-events: auto; }
+    .ar-card { background: white; width: 90%; margin-bottom: 20px; padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); pointer-events: auto; }
+    .stop-btn { background: #ff4757; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="splash" class="screen" style="display: flex;">
+    <div style="background: #1f2029; padding: 30px; border-radius: 20px; margin-bottom: 20px;">
+      <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+    </div>
+    <h1>WanderAR</h1>
+    <p>Navigate with Zero Training</p>
+  </div>
+
+  <div id="menu" class="screen">
+    <div class="menu-header">
+      <h2>WanderAR</h2>
+      <p style="color: #666;">Choose your destination</p>
+    </div>
+    <button class="room-btn" onclick="goToScan('Room 1')">Room 1</button>
+    <button class="room-btn" onclick="goToScan('Room 2')">Room 2</button>
+  </div>
+
+  <div id="scan-prompt" class="screen">
+    <div style="background: #f0f0f0; padding: 40px; border-radius: 50%; margin-bottom: 20px;">
+      <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+    <h3>Align with Map</h3>
+    <p style="color: #666; width: 80%;">Stand in front of the map and hold your phone steady.</p>
+    <div class="start-btn" onclick="startAR()">I'm Ready</div>
+  </div>
+
+  <div id="ar-ui" class="screen">
+    <div class="ar-header">
+      <span style="font-weight: bold;">🟢 Navigation Active</span>
+      <button class="stop-btn" onclick="stopAR()">✕ Stop</button>
+    </div>
+    <div class="ar-card">
+      <p style="margin: 0; color: #666; font-size: 14px;">Navigating to</p>
+      <h3 id="destination-name" style="margin: 5px 0;">Destination</h3>
+    </div>
+  </div>
+
+  <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind;" color-space="sRGB" renderer="colorManagement: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-assets>
+        <a-asset-item id="myArrow" src="./arrow.glb"></a-asset-item>
+      </a-assets>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-gltf-model id="nav-arrow" rotation="0 0 0" position="0 -1.5 0" scale="0.005 0.005 0.005" src="#myArrow"></a-gltf-model>
+      </a-entity>
+    </a-scene>
+  </div>
+
+  <script>
+    // Initial splash behavior
+    setTimeout(() => {
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+    }, 2000);
+
+    function goToScan(roomName) {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('scan-prompt').style.display = 'flex';
+      document.getElementById('destination-name').innerText = roomName;
+
+      // Define room positions (X Y Z)
+      const roomPositions = {
+          'Room 1': '0 -1.5 -2',
+          'Room 2': '2 -1.5 -4'
+      };
+      document.getElementById('nav-arrow').setAttribute('position', roomPositions[roomName]);
+    }
+
+    function startAR() {
+      document.getElementById('scan-prompt').style.display = 'none';
+      document.getElementById('ar-ui').style.display = 'flex';
+    }
+
+    function stopAR() {
+      document.getElementById('ar-ui').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
